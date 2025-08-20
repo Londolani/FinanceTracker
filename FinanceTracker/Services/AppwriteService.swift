@@ -1,0 +1,83 @@
+import SwiftUI
+import Appwrite
+import AppwriteModels
+import Combine
+import JSONCodable
+
+class AppwriteService: ObservableObject {
+    static let shared = AppwriteService()
+    
+    // IMPORTANT: Replace these with your actual Appwrite credentials.
+    private let client = Client()
+        .setEndpoint("https://nyc.cloud.appwrite.io/v1") // Your Appwrite API Endpoint
+        .setProject("68a4d2bf000f0e3d163c") // Your Project ID
+    
+    var account: Account
+    var databases: Databases
+    
+    @Published var currentUser: AppwriteModels.User<[String: JSONCodable.AnyCodable]>?
+    @Published var isAuthenticated = false
+    @Published var isLoading = true
+
+    // Appwrite Database and Collection IDs
+    let databaseId = "68a4d6440031e3018a98"
+    let goalsCollectionId = "68a4d64e0006f5fc82e6"
+    let credentialsCollectionId = "68a4db1e003c111ed316"
+    // Using goals collection for transactions temporarily - you can create a separate collection later
+    let transactionsCollectionId = "68a4d64e0006f5fc82e6"
+
+    private init() {
+        self.account = Account(self.client)
+        self.databases = Databases(self.client)
+        self.checkAuthenticationStatus()
+    }
+
+    private func checkAuthenticationStatus() {
+        Task {
+            do {
+                let user = try await account.get()
+                await MainActor.run {
+                    self.currentUser = user
+                    self.isAuthenticated = true
+                    print("User is authenticated: \(user.name)")
+                }
+            } catch {
+                print("User is not authenticated: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.isAuthenticated = false
+                }
+            }
+            await MainActor.run {
+                self.isLoading = false
+            }
+        }
+    }
+    
+    // MARK: - Auth Methods
+    func signUp(email: String, password: String) async throws {
+        _ = try await account.create(userId: "unique()", email: email, password: password)
+        _ = try await account.createEmailPasswordSession(email: email, password: password)
+        let user = try await account.get()
+        await MainActor.run {
+            self.currentUser = user
+            self.isAuthenticated = true
+        }
+    }
+    
+    func signIn(email: String, password: String) async throws {
+        _ = try await account.createEmailPasswordSession(email: email, password: password)
+        let user = try await account.get()
+        await MainActor.run {
+            self.currentUser = user
+            self.isAuthenticated = true
+        }
+    }
+    
+    func signOut() async throws {
+        _ = try await account.deleteSession(sessionId: "current")
+        await MainActor.run {
+            self.isAuthenticated = false
+            self.currentUser = nil
+        }
+    }
+}
