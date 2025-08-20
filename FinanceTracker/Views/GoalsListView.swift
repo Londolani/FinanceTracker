@@ -134,8 +134,9 @@ struct GoalsListView: View {
                 let target = (data["target_amount"]?.value as? Double) ?? ((data["target_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
                 let saved = (data["saved_amount"]?.value as? Double) ?? ((data["saved_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
                 let isTracked = (data["is_tracked"]?.value as? Bool) ?? true
+                let linkedAccountId = data["linkedAccountId"]?.value as? String // Fixed: use camelCase to match creation
                 
-                return GoalItem(id: doc.id, name: name, target: target, saved: saved, isTracked: isTracked)
+                return GoalItem(id: doc.id, name: name, target: target, saved: saved, isTracked: isTracked, linkedAccountId: linkedAccountId)
             }
             await MainActor.run {
                 self.goals = items
@@ -156,6 +157,7 @@ struct GoalItem: Identifiable, Hashable, Equatable {
     let target: Double
     let saved: Double
     let isTracked: Bool
+    let linkedAccountId: String? // Add the linked account ID field
     
     var progress: Double {
         target > 0 ? min(saved / target, 1.0) : 0

@@ -404,8 +404,9 @@ struct TransferView: View {
                 let target = (data["target_amount"]?.value as? Double) ?? ((data["target_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
                 let saved = (data["saved_amount"]?.value as? Double) ?? ((data["saved_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
                 let isTracked = (data["is_tracked"]?.value as? Bool) ?? true
+                let linkedAccountId = data["linkedAccountId"]?.value as? String // CORRECTED: Use camelCase to match the key used during creation.
                 
-                return GoalItem(id: doc.id, name: name, target: target, saved: saved, isTracked: isTracked)
+                return GoalItem(id: doc.id, name: name, target: target, saved: saved, isTracked: isTracked, linkedAccountId: linkedAccountId)
             }
             
             await MainActor.run {
@@ -496,9 +497,16 @@ struct TransferView: View {
             
             // Update goal progress if a goal was selected
             if let goal = selectedGoal {
-                // Determine if this is an outgoing transfer (money leaving the selected account)
-                let isOutgoing = true // For now, all transfers from the source account are outgoing
+                // Determine transfer direction based on goal's linked account
+                let isOutgoing = determineTransferDirection(
+                    goal: goal,
+                    sourceAccountId: sourceAccountId,
+                    destinationAccountId: selectedDestinationAccount
+                )
                 try await updateGoalProgress(goal: goal, amount: amountValue, isOutgoingTransfer: isOutgoing)
+                
+                // Store transfer details for success overlay
+                self.isOutgoingTransfer = isOutgoing
             }
             
             // Handle successful transfer
@@ -508,7 +516,6 @@ struct TransferView: View {
                 
                 // Store transfer details for success overlay
                 self.transferAmount = String(format: "%.2f", amountValue)
-                self.isOutgoingTransfer = true
                 
                 // Reset form
                 self.amount = ""
@@ -562,6 +569,44 @@ struct TransferView: View {
     
     // MARK: - Helper Functions
     
+    private func determineTransferDirection(goal: GoalItem, sourceAccountId: String, destinationAccountId: String?) -> Bool {
+        // If goal has no linked account, default to outgoing (money leaving source account)
+        guard let goalLinkedAccountId = goal.linkedAccountId else {
+            print("🚨 DEBUG: Goal '\(goal.name)' has no linkedAccountId - defaulting to outgoing")
+            return true // Default to outgoing
+        }
+        
+        print("🔍 DEBUG: Goal '\(goal.name)' linked to account: \(goalLinkedAccountId)")
+        print("🔍 DEBUG: Source account: \(sourceAccountId)")
+        print("🔍 DEBUG: Destination account: \(destinationAccountId ?? "nil")")
+        
+        // If money is leaving the goal's linked account, it's outgoing (reduces goal)
+        if sourceAccountId == goalLinkedAccountId {
+            print("✅ DEBUG: Money LEAVING goal's account - OUTGOING (subtract from goal)")
+            return true // Money leaving goal's account = outgoing = reduce goal
+        }
+        
+        // If money is going to the goal's linked account, it's incoming (increases goal)
+        if destinationAccountId == goalLinkedAccountId {
+            print("✅ DEBUG: Money ENTERING goal's account - INCOMING (add to goal)")
+            return false // Money entering goal's account = incoming = increase goal
+        }
+        
+        print("⚠️ DEBUG: Neither source nor destination matches goal's account - defaulting to outgoing")
+        // If neither source nor destination matches the goal's account, no change to goal
+        // But since we're here, the user selected this goal, so default to outgoing
+        return true
+    }
+    
+    private func createSuccessMessage() -> String {
+        guard let goal = selectedGoal else {
+            return "Transfer of R\(transferAmount) completed successfully!"
+        }
+        
+        let direction = isOutgoingTransfer ? "-" : "+"
+        return "Goal '\(goal.name)' updated: \(direction)R\(transferAmount)"
+    }
+    
     private func updateReference(for goal: GoalItem?) {
         guard let sourceAccountId = selectedSourceAccount,
               let sourceAccount = accounts.first(where: { $0.accountId == sourceAccountId }) else {
@@ -584,14 +629,6 @@ struct TransferView: View {
         } else {
             theirReference = "Payment"
         }
-    }
-    
-    private func createSuccessMessage() -> String {
-        guard let goal = selectedGoal else {
-            return "Transfer of R\(transferAmount) completed successfully!"
-        }
-        
-        return "Goal '\(goal.name)' updated: +R\(transferAmount)"
     }
 }
 
