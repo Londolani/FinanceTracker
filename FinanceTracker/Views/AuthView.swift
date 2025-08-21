@@ -5,74 +5,185 @@ struct AuthView: View {
     @State private var password = ""
     @State private var isLogin = true
     @State private var errorMessage: String?
+    @State private var isLoading = false
     @EnvironmentObject var appwriteService: AppwriteService
     
     var body: some View {
         ZStack {
-            LinearGradient(colors: [.blue.opacity(0.3), .purple.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+            // Beautiful gradient background
+            LinearGradient(
+                colors: [.blue.opacity(0.1), .purple.opacity(0.1)], 
+                startPoint: .topLeading, 
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
-            VStack(spacing: 30) {
-                Image(systemName: "dollarsign.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.white)
-                
-                Text("Finance Tracker")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                VStack(spacing: 20) {
-                    Text(isLogin ? "Welcome Back!" : "Create an Account")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+            ScrollView {
+                VStack(spacing: 30) {
+                    Spacer(minLength: 60)
                     
-                    VStack(spacing: 15) {
-                        TextField("Email", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    // App icon and title
+                    VStack(spacing: 20) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 100, height: 100)
+                                .shadow(color: .blue.opacity(0.3), radius: 20, x: 0, y: 10)
+                            
+                            Image(systemName: "dollarsign.circle.fill")
+                                .font(.system(size: 50))
+                                .foregroundColor(.blue)
+                        }
                         
-                        SecureField("Password", text: $password)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    if let errorMessage = errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                            .padding(.horizontal)
-                    }
-                    
-                    Button(isLogin ? "Login" : "Sign Up") {
-                        Task {
-                            errorMessage = nil
-                            do {
-                                if isLogin {
-                                    try await appwriteService.signIn(email: email, password: password)
-                                } else {
-                                    try await appwriteService.signUp(email: email, password: password)
-                                }
-                            } catch {
-                                await MainActor.run {
-                                    errorMessage = error.localizedDescription
-                                }
-                            }
+                        VStack(spacing: 8) {
+                            Text("Finance Tracker")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            
+                            Text("Track your savings goals with ease")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
                         }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
                     
-                    Button(isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login") {
-                        isLogin.toggle()
-                        errorMessage = nil
+                    // Auth form card
+                    VStack(spacing: 24) {
+                        // Toggle between login/signup
+                        HStack(spacing: 0) {
+                            Button(action: { isLogin = true }) {
+                                Text("Login")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(isLogin ? .white : .blue)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        isLogin ? .blue : .clear,
+                                        in: RoundedRectangle(cornerRadius: 12)
+                                    )
+                            }
+                            
+                            Button(action: { isLogin = false }) {
+                                Text("Sign Up")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(!isLogin ? .white : .blue)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        !isLogin ? .blue : .clear,
+                                        in: RoundedRectangle(cornerRadius: 12)
+                                    )
+                            }
+                        }
+                        .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                        
+                        // Form fields
+                        VStack(spacing: 16) {
+                            // Email field
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Email")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                
+                                TextField("Enter your email", text: $email)
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .padding(16)
+                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                            
+                            // Password field
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Password")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                
+                                SecureField("Enter your password", text: $password)
+                                    .padding(16)
+                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(.blue.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                        }
+                        
+                        // Error message
+                        if let errorMessage = errorMessage {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.red)
+                                Text(errorMessage)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red)
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                        }
+                        
+                        // Submit button
+                        Button(action: handleAuth) {
+                            HStack {
+                                if isLoading {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .foregroundColor(.white)
+                                } else {
+                                    Image(systemName: isLogin ? "person.fill" : "person.badge.plus.fill")
+                                    Text(isLogin ? "Login" : "Create Account")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                LinearGradient(
+                                    colors: [.blue, .blue.opacity(0.8)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                            .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                        }
+                        .disabled(email.isEmpty || password.isEmpty || isLoading)
+                        .opacity((email.isEmpty || password.isEmpty || isLoading) ? 0.6 : 1.0)
                     }
-                    .foregroundColor(.white)
-                    .font(.caption)
+                    .padding(24)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+                    .padding(.horizontal, 20)
+                    
+                    Spacer(minLength: 40)
                 }
-                .padding(.horizontal, 30)
+            }
+        }
+    }
+    
+    private func handleAuth() {
+        Task {
+            errorMessage = nil
+            isLoading = true
+            
+            do {
+                if isLogin {
+                    try await appwriteService.signIn(email: email, password: password)
+                } else {
+                    try await appwriteService.signUp(email: email, password: password)
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
             }
         }
     }

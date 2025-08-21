@@ -2,108 +2,236 @@ import SwiftUI
 import Appwrite
 
 struct CredentialsView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var apiKey = ""
     @State private var clientId = ""
     @State private var clientSecret = ""
     @State private var showSuccess = false
     @State private var isLoading = false
+    @State private var errorMessage: String?
     @EnvironmentObject var appwriteService: AppwriteService
     
     var body: some View {
-        ZStack {
-            LinearGradient(colors: [.green.opacity(0.1), .mint.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            // Header section
+            headerSection
             
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "building.2.fill")
-                                .foregroundColor(.green)
-                            Text("Investec API Integration")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        Text("Connect your Investec account to automatically track transactions and update your savings goals.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-                
-                Section(header: Text("API Credentials")) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("API Key")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        TextField("Enter your API key", text: $apiKey)
-                            .autocapitalization(.none)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
+            // Main content
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Info card
+                    infoCard
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Client ID")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        TextField("Enter your client ID", text: $clientId)
-                            .autocapitalization(.none)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
+                    // Credentials form
+                    credentialsForm
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Client Secret")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        SecureField("Enter your client secret", text: $clientSecret)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
+                    // Save button
+                    saveButton
                 }
-                
-                Section {
-                    Button("Save Credentials") {
-                        saveCredentials()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .disabled(apiKey.isEmpty || clientId.isEmpty || clientSecret.isEmpty || isLoading)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                }
-                
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "shield.fill")
-                                .foregroundColor(.blue)
-                            Text("Security Note")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        Text("Your credentials are securely encrypted and stored. They are only used to connect to your Investec account and retrieve transaction data.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
-            .scrollContentBackground(.hidden)
+            .background(
+                LinearGradient(
+                    colors: [.blue.opacity(0.05), .purple.opacity(0.05)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            )
         }
-        .navigationTitle("Connect Investec")
-        .navigationBarTitleDisplayMode(.inline)
-        .alert("Credentials Saved!", isPresented: $showSuccess) {
-            Button("OK", role: .cancel) { }
+        .navigationBarHidden(true)
+        .alert("Success!", isPresented: $showSuccess) {
+            Button("OK") { dismiss() }
         } message: {
-            Text("Your Investec credentials have been securely saved.")
+            Text("Your Investec credentials have been saved successfully!")
         }
-        .overlay {
-            if isLoading {
-                ProgressView("Saving...")
-                    .scaleEffect(1.5)
-                    .padding()
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .task {
+            await loadExistingCredentials()
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            // Navigation header
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.primary)
+                        .padding(8)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                
+                Spacer()
+                
+                Text("Bank Connection")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                
+                Spacer()
+                
+                Circle()
+                    .frame(width: 34, height: 34)
+                    .opacity(0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+        }
+    }
+    
+    private var infoCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(.green.opacity(0.15))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: "building.2.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.green)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Investec API Integration")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text("Secure banking connection")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+            
+            Text("Connect your Investec account to automatically track transactions and update your savings goals. Your credentials are stored securely and encrypted.")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+    
+    private var credentialsForm: some View {
+        VStack(spacing: 20) {
+            // Form header
+            HStack {
+                Text("API Credentials")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            
+            // API Key field
+            VStack(alignment: .leading, spacing: 8) {
+                Text("API Key")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                TextField("Enter your Investec API key", text: $apiKey)
+                    .autocapitalization(.none)
+                    .padding(16)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(.green.opacity(0.3), lineWidth: 1)
+                    )
+            }
+            
+            // Client ID field
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Client ID")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                TextField("Enter your client ID", text: $clientId)
+                    .autocapitalization(.none)
+                    .padding(16)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(.green.opacity(0.3), lineWidth: 1)
+                    )
+            }
+            
+            // Client Secret field
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Client Secret")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                SecureField("Enter your client secret", text: $clientSecret)
+                    .padding(16)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(.green.opacity(0.3), lineWidth: 1)
+                    )
+            }
+            
+            // Error message
+            if let errorMessage = errorMessage {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    
+                    Text(errorMessage)
+                        .font(.system(size: 14))
+                        .foregroundColor(.red)
+                    
+                    Spacer()
+                }
+                .padding(12)
+                .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(.red.opacity(0.3), lineWidth: 1)
+                )
             }
         }
+        .padding(20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+    
+    private var saveButton: some View {
+        Button(action: saveCredentials) {
+            HStack(spacing: 12) {
+                if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .foregroundColor(.white)
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                    
+                    Text("Save Credentials")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                LinearGradient(
+                    colors: [.green, .green.opacity(0.8)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
+        .disabled(apiKey.isEmpty || clientId.isEmpty || clientSecret.isEmpty || isLoading)
+        .opacity((apiKey.isEmpty || clientId.isEmpty || clientSecret.isEmpty || isLoading) ? 0.6 : 1.0)
+    }
+    
+    private func loadExistingCredentials() async {
+        // Implementation for loading existing credentials
     }
     
     private func saveCredentials() {

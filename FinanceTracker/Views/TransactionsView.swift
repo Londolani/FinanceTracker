@@ -3,6 +3,7 @@ import Appwrite
 
 struct TransactionsView: View {
     @EnvironmentObject var appwriteService: AppwriteService
+    @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var transactions: [TransactionItem] = []
@@ -10,122 +11,242 @@ struct TransactionsView: View {
     @State private var accounts: [InvestecService.AccountResponse.Account] = []
 
     var body: some View {
-        ZStack {
-            LinearGradient(colors: [.green.opacity(0.1), .teal.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            // Header section
+            headerSection
             
-            VStack(alignment: .leading, spacing: 16) {
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
-                        .padding(.horizontal)
-                }
+            // Main content
+            ZStack {
+                LinearGradient(
+                    colors: [.blue.opacity(0.05), .purple.opacity(0.05)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
                 
-                if isLoading {
-                    ProgressView("Loading transactions...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if transactions.isEmpty {
-                    ContentUnavailableView(
-                        "No Transactions",
-                        systemImage: "creditcard",
-                        description: Text("Connect your Investec account or wait for transaction sync.")
-                    )
-                } else {
-                    // Account picker if multiple accounts
-                    if accounts.count > 1 {
-                        Picker("Select Account", selection: $selectedAccountId) {
-                            ForEach(accounts, id: \.accountId) { account in
-                                Text(account.accountName)
-                                    .tag(account.accountId as String?)
-                            }
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Account selector card (if multiple accounts)
+                        if accounts.count > 1 {
+                            accountSelectorCard
                         }
-                        .pickerStyle(.menu)
-                        .padding(.horizontal)
-                        .onChange(of: selectedAccountId) { _ in
-                            Task {
-                                await loadTransactions()
-                            }
-                        }
+                        
+                        // Transactions content
+                        transactionsContent
                     }
-                    
-                    List(transactions) { transaction in
-                        TransactionRow(transaction: transaction)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    }
-                    .listStyle(.plain)
-                    .background(Color.clear)
-                    .refreshable {
-                        await loadTransactions()
-                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
             }
         }
-        .task { await loadTransactions() }
-        .navigationTitle("Recent Transactions")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarHidden(true)
+        .task {
+            await loadTransactions()
+        }
     }
-
-    @ViewBuilder
-    private func TransactionRow(transaction: TransactionItem) -> some View {
-        HStack(alignment: .center, spacing: 16) {
-            Circle()
-                .fill(transaction.isDebit ? .red.opacity(0.2) : .green.opacity(0.2))
-                .frame(width: 50, height: 50)
-                .overlay {
-                    Image(systemName: transaction.isDebit ? "arrow.down" : "arrow.up")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(transaction.isDebit ? .red : .green)
+    
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            // Navigation header
+            HStack {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.primary)
+                        .padding(8)
+                        .background(.ultraThinMaterial, in: Circle())
                 }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(transaction.description)
-                    .font(.headline)
-                    .lineLimit(2)
                 
-                if let date = transaction.date {
-                    Text(date, style: .date)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text(transaction.dateString)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Spacer()
+                
+                Text("Recent Transactions")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                
+                Spacer()
+                
+                Circle()
+                    .frame(width: 34, height: 34)
+                    .opacity(0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+        }
+    }
+    
+    private var accountSelectorCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "building.2.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.blue)
+                
+                Text("Select Account")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Spacer()
             }
             
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(transaction.isDebit ? "-R\(format(abs(transaction.amount)))" : "+R\(format(transaction.amount))")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(transaction.isDebit ? .red : .green)
-                
-                if let balance = transaction.runningBalance {
-                    Text("Balance: R\(format(balance))")
-                        .font(.caption)
+            Menu {
+                ForEach(accounts, id: \.accountId) { account in
+                    Button(action: {
+                        selectedAccountId = account.accountId
+                        Task { await loadTransactions() }
+                    }) {
+                        HStack {
+                            Text(account.displayName)
+                            if selectedAccountId == account.accountId {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(accounts.first { $0.accountId == selectedAccountId }?.displayName ?? "Select account")
+                        .font(.system(size: 14))
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
-                
-                Text(transaction.isDebit ? "Debit" : "Credit")
-                    .font(.caption2)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(transaction.isDebit ? .red.opacity(0.1) : .green.opacity(0.1))
-                    .foregroundColor(transaction.isDebit ? .red : .green)
-                    .cornerRadius(8)
+                .padding(12)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(.blue.opacity(0.3), lineWidth: 1)
+                )
             }
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-        )
         .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+    }
+    
+    private var transactionsContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let errorMessage = errorMessage {
+                errorCard(message: errorMessage)
+            }
+            
+            if isLoading {
+                loadingCard
+            } else if transactions.isEmpty {
+                emptyStateCard
+            } else {
+                transactionsList
+            }
+        }
+    }
+    
+    private var loadingCard: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            
+            Text("Loading your transactions...")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+    
+    private var emptyStateCard: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "creditcard")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary.opacity(0.6))
+            
+            Text("No Transactions Found")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.secondary)
+            
+            Text("Connect your Investec account or check back later for transaction history.")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+    
+    private func errorCard(message: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.red)
+            
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundColor(.red)
+            
+            Spacer()
+        }
+        .padding(12)
+        .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.red.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private var transactionsList: some View {
+        LazyVStack(spacing: 8) {
+            ForEach(transactions) { transaction in
+                StunningTransactionCard(transaction: transaction)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func StunningTransactionCard(transaction: TransactionItem) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Transaction header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(transaction.description)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    if let date = transaction.date {
+                        Text(date, style: .date)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(transaction.dateString)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(transaction.isDebit ? "-R\(format(abs(transaction.amount)))" : "+R\(format(transaction.amount))")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(transaction.isDebit ? .red : .green)
+                    
+                    if let balance = transaction.runningBalance {
+                        Text("Balance: R\(format(balance))")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        }
     }
     
     private func format(_ value: Double) -> String {
