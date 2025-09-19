@@ -2,9 +2,13 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var appwriteService: AppwriteService
-    
+    @State private var showMonthlyReplay = false
+    @State private var monthlyTransactions: [Transaction] = []
+    @State private var isLoadingReplay = false
+    @State private var replayError: String?
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             // Use a ZStack to layer the background and content
             ZStack {
                 // Background Gradient
@@ -56,46 +60,42 @@ struct DashboardView: View {
                 }
             }
             .navigationBarHidden(true)
+            .navigationDestination(isPresented: $showMonthlyReplay) {
+                MonthlyReplayView(transactions: monthlyTransactions, month: 8, year: 2025)
+            }
         }
         .navigationViewStyle(.stack) // Use stack style for better layout control
     }
     
     private var headerSection: some View {
-        VStack(spacing: 12) { // Reduced spacing
+        VStack(spacing: 12) {
             // App title
             HStack {
                 Text("Finance Tracker")
-                    .font(.system(size: 26, weight: .bold, design: .rounded)) // Reduced font size
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
-                
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.top, 16) // Reduced top padding
-            
+            .padding(.top, 16)
             // Welcome message
             HStack {
-                VStack(alignment: .leading, spacing: 2) { // Reduced spacing
-                    Text("Welcome back,")
-                        .font(.system(size: 15)) // Reduced font size
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(appwriteService.isGuestMode ? "Welcome, Guest" : "Welcome back,")
+                        .font(.system(size: 15))
                         .foregroundColor(.secondary)
-                    
-                    Text(appwriteService.currentUser?.name ?? "User")
-                        .font(.system(size: 22, weight: .semibold)) // Reduced font size
+                    Text(appwriteService.isGuestMode ? "Guest" : (appwriteService.currentUser?.name ?? "User"))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundColor(.primary)
                 }
-                
                 Spacer()
-                
-                // User avatar
                 ZStack {
                     Circle()
                         .fill(.ultraThinMaterial)
-                        .frame(width: 44, height: 44) // Reduced size
+                        .frame(width: 44, height: 44)
                         .shadow(color: .blue.opacity(0.2), radius: 5, x: 0, y: 2)
-                    
                     Image(systemName: "person.fill")
-                        .font(.system(size: 18)) // Reduced size
+                        .font(.system(size: 18))
                         .foregroundColor(.blue)
                 }
             }
@@ -151,44 +151,94 @@ struct DashboardView: View {
     
     private var goalsCards: some View {
         Group {
-            NavigationLink(destination: GoalsListView()) {
-                StunningDashboardCard(
-                    title: "View Goals",
-                    subtitle: "Track progress",
-                    icon: "target",
-                    color: .indigo
-                )
-            }
-            
-            NavigationLink(destination: StunningGoalCreationView()) {
-                StunningDashboardCard(
-                    title: "Create Goal",
-                    subtitle: "Set new target",
-                    icon: "plus.circle.fill",
-                    color: .blue
-                )
+            if appwriteService.isGuestMode {
+                NavigationLink(destination: GoalsListView()) {
+                    StunningDashboardCard(
+                        title: "View Goals",
+                        subtitle: "Available in guest mode",
+                        icon: "target",
+                        color: .indigo
+                    )
+                }
+                
+                NavigationLink(destination: StunningGoalCreationView()) {
+                    StunningDashboardCard(
+                        title: "Create Goal",
+                        subtitle: "Set new target",
+                        icon: "plus.circle.fill",
+                        color: .blue
+                    )
+                }
+            } else {
+                NavigationLink(destination: GoalsListView()) {
+                    StunningDashboardCard(
+                        title: "View Goals",
+                        subtitle: "Track progress",
+                        icon: "target",
+                        color: .indigo
+                    )
+                }
+                
+                NavigationLink(destination: StunningGoalCreationView()) {
+                    StunningDashboardCard(
+                        title: "Create Goal",
+                        subtitle: "Set new target",
+                        icon: "plus.circle.fill",
+                        color: .blue
+                    )
+                }
             }
         }
     }
     
     private var bankingCards: some View {
         Group {
-            NavigationLink(destination: StunningTransferView()) {
-                StunningDashboardCard(
-                    title: "Transfer Money",
-                    subtitle: "Link to goals",
-                    icon: "arrow.left.arrow.right.circle.fill",
-                    color: .orange
-                )
-            }
-            
-            NavigationLink(destination: TransactionsView()) {
-                StunningDashboardCard(
-                    title: "Transactions",
-                    subtitle: "Recent activity",
-                    icon: "creditcard.fill",
-                    color: .teal
-                )
+            if appwriteService.isGuestMode {
+                NavigationLink(destination: StunningTransferView()) {
+                    StunningDashboardCard(
+                        title: "Transfer Money",
+                        subtitle: "Sandbox banking enabled",
+                        icon: "arrow.left.arrow.right.circle.fill",
+                        color: .orange
+                    )
+                }
+
+                Button(action: {
+                    Task {
+                        await fetchMonthlyReplay()
+                    }
+                }) {
+                    StunningDashboardCard(
+                        title: "Monthly Replay",
+                        subtitle: "August 2025 recap",
+                        icon: "film.stack.fill",
+                        color: .purple
+                    )
+                }
+                .disabled(isLoadingReplay)
+            } else {
+                NavigationLink(destination: StunningTransferView()) {
+                    StunningDashboardCard(
+                        title: "Transfer Money",
+                        subtitle: "Move funds",
+                        icon: "arrow.left.arrow.right.circle.fill",
+                        color: .orange
+                    )
+                }
+
+                Button(action: {
+                    Task {
+                        await fetchMonthlyReplay()
+                    }
+                }) {
+                    StunningDashboardCard(
+                        title: "Monthly Replay",
+                        subtitle: "August 2025 recap",
+                        icon: "film.stack.fill",
+                        color: .purple
+                    )
+                }
+                .disabled(isLoadingReplay)
             }
         }
     }
@@ -221,6 +271,56 @@ struct DashboardView: View {
                 )
             }
         }
+    }
+    
+    // Fetch transactions for August 2025
+    private func fetchMonthlyReplay() async {
+        isLoadingReplay = true
+        replayError = nil
+        do {
+            // First, fetch the saved credentials from Appwrite
+            let credentialsList = try await appwriteService.databases.listDocuments(
+                databaseId: appwriteService.databaseId,
+                collectionId: appwriteService.credentialsCollectionId
+            )
+            
+            // Check if we have credentials
+            guard let doc = credentialsList.documents.first,
+                  let apiKey = doc.data["investec_api_key"]?.value as? String,
+                  let clientId = doc.data["client_id"]?.value as? String,
+                  let clientSecret = doc.data["client_secret"]?.value as? String else {
+                throw NSError(domain: "DashboardView", code: 400, userInfo: [
+                    NSLocalizedDescriptionKey: "No Investec credentials found. Please add your API credentials first."
+                ])
+            }
+
+            // Use the first account for simplicity
+            let accounts = try await InvestecService.shared.getAccounts(
+                apiKey: apiKey,
+                clientId: clientId,
+                clientSecret: clientSecret
+            )
+            guard let account = accounts.first else {
+                replayError = "No accounts found."
+                isLoadingReplay = false
+                return
+            }
+            let fromDate = "2025-08-01"
+            let toDate = "2025-08-31"
+            let transactions = try await InvestecService.shared.getTransactions(
+                accountId: account.accountId,
+                fromDate: fromDate,
+                toDate: toDate,
+                apiKey: apiKey,
+                clientId: clientId,
+                clientSecret: clientSecret
+            )
+            monthlyTransactions = transactions
+            showMonthlyReplay = true
+        } catch {
+            replayError = error.localizedDescription
+        }
+        isLoadingReplay = false
     }
 }
 
@@ -271,4 +371,10 @@ struct StunningDashboardCard: View {
 #Preview {
     DashboardView()
         .environmentObject(AppwriteService.shared)
+}
+
+// Add ReplayError struct for Identifiable conformance
+struct ReplayError: Identifiable {
+    let id: UUID
+    let message: String
 }

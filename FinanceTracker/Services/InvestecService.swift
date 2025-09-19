@@ -11,61 +11,148 @@ class InvestecService: ObservableObject {
     private let baseURL = "https://openapi.investec.com"
     private let tokenURL = "https://openapi.investec.com/identity/v2/oauth2/token"
     
-    // MARK: - Models
+    // Fallback sandbox data for guest mode
+    private let sandboxAccounts: [AccountResponse.Account] = [
+        AccountResponse.Account(
+            accountId: "sandbox_account_1",
+            accountNumber: "123456789",
+            accountName: "Demo Checking",
+            referenceName: "Demo Account",
+            productName: "Checking Account",
+            kycCompliant: true,
+            profileId: "sandbox_profile_1",
+            profileName: "Demo Profile"
+        ),
+        AccountResponse.Account(
+            accountId: "sandbox_account_2",
+            accountNumber: "987654321",
+            accountName: "Demo Savings",
+            referenceName: "Savings Account",
+            productName: "Savings Account",
+            kycCompliant: true,
+            profileId: "sandbox_profile_2",
+            profileName: "Demo Profile"
+        )
+    ]
     
-    struct Transaction: Identifiable, Codable {
-        let id: String
-        let accountId: String
-        let type: String
-        let description: String
-        let amount: Double
-        let date: String
-        var runningBalance: Double?
-        
-        enum CodingKeys: String, CodingKey {
-            case accountId
-            case type
-            case description
-            case amount
-            case runningBalance
-            case transactionDate = "transactionDate"
-            case transactionId = "transactionId"
-        }
-        
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            accountId = try container.decode(String.self, forKey: .accountId)
-            type = try container.decode(String.self, forKey: .type)
-            description = try container.decode(String.self, forKey: .description)
-            amount = try container.decode(Double.self, forKey: .amount)
-            date = try container.decodeIfPresent(String.self, forKey: .transactionDate) ?? ""
-            runningBalance = try container.decodeIfPresent(Double.self, forKey: .runningBalance)
-            
-            // Use transactionId if available, otherwise create a UUID
-            if let transactionId = try container.decodeIfPresent(String.self, forKey: .transactionId) {
-                id = transactionId
-            } else {
-                id = UUID().uuidString
-            }
-        }
-        
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(accountId, forKey: .accountId)
-            try container.encode(type, forKey: .type)
-            try container.encode(description, forKey: .description)
-            try container.encode(amount, forKey: .amount)
-            try container.encode(date, forKey: .transactionDate)
-            try container.encodeIfPresent(runningBalance, forKey: .runningBalance)
-            try container.encode(id, forKey: .transactionId)
-        }
-    }
+    private let sandboxTransactions: [Transaction] = [
+        Transaction(
+            id: "sandbox_txn_1",
+            accountId: "sandbox_account_1",
+            type: "Credit",
+            transactionType: "Deposits",
+            status: "POSTED",
+            description: "Salary Deposit",
+            amount: 5000.00,
+            currency: "ZAR",
+            postingDate: "2025-08-30",
+            valueDate: "2025-08-30",
+            transactionDate: "2025-08-30",
+            actionDate: "2025-09-15",
+            category: "Income",
+            cardNumber: nil,
+            runningBalance: 12500.00,
+            postedOrder: 4752
+        ),
+        Transaction(
+            id: "sandbox_txn_2",
+            accountId: "sandbox_account_1",
+            type: "Debit",
+            transactionType: "CardPurchases",
+            status: "POSTED",
+            description: "Grocery Shopping - Woolworths",
+            amount: -150.00,
+            currency: "ZAR",
+            postingDate: "2025-08-26",
+            valueDate: "2025-08-31",
+            transactionDate: "2025-08-23",
+            actionDate: "2025-09-15",
+            category: "Groceries",
+            cardNumber: "402167xxxxxx5069",
+            runningBalance: 12350.00,
+            postedOrder: 4742
+        ),
+        Transaction(
+            id: "sandbox_txn_3",
+            accountId: "sandbox_account_1",
+            type: "Debit",
+            transactionType: "ATMWithdrawals",
+            status: "POSTED",
+            description: "SUNNINGHILL SQUARE SANDTON ZA",
+            amount: -200.00,
+            currency: "ZAR",
+            postingDate: "2025-08-31",
+            valueDate: "2025-08-31",
+            transactionDate: "2025-08-31",
+            actionDate: "2025-09-15",
+            category: "Transport",
+            cardNumber: "402167xxxxxx5092",
+            runningBalance: 12270.00,
+            postedOrder: 4755
+        ),
+        Transaction(
+            id: "sandbox_txn_4",
+            accountId: "sandbox_account_1",
+            type: "Debit",
+            transactionType: "PayShap",
+            status: "POSTED",
+            description: "LONDOLANI CAPITEC",
+            amount: -45.00,
+            currency: "ZAR",
+            postingDate: "2025-08-28",
+            valueDate: "2025-08-27",
+            transactionDate: "2025-08-27",
+            actionDate: "2025-09-15",
+            category: "Dining",
+            cardNumber: "",
+            runningBalance: 12225.00,
+            postedOrder: 4750
+        ),
+        Transaction(
+            id: "sandbox_txn_5",
+            accountId: "sandbox_account_2",
+            type: "Credit",
+            transactionType: "Deposits",
+            status: "POSTED",
+            description: "Transfer from Checking",
+            amount: 1000.00,
+            currency: "ZAR",
+            postingDate: "2025-08-28",
+            valueDate: "2025-08-28",
+            transactionDate: "2025-08-28",
+            actionDate: "2025-09-15",
+            category: "Transfers",
+            cardNumber: "",
+            runningBalance: 8500.00,
+            postedOrder: 4751
+        ),
+        Transaction(
+            id: "sandbox_txn_6",
+            accountId: "sandbox_account_2",
+            type: "Credit",
+            transactionType: "Deposits",
+            status: "POSTED",
+            description: "Interest Payment",
+            amount: 25.50,
+            currency: "ZAR",
+            postingDate: "2025-08-27",
+            valueDate: "2025-08-27",
+            transactionDate: "2025-08-27",
+            actionDate: "2025-09-15",
+            category: "Income",
+            cardNumber: "",
+            runningBalance: 8525.50,
+            postedOrder: 4747
+        )
+    ]
+    
+    // MARK: - Models
     
     struct TransactionResponse: Codable {
         let data: TransactionData
         
         struct TransactionData: Codable {
-            let transactions: [Transaction]
+            var transactions: [Transaction]
         }
     }
     
@@ -180,89 +267,141 @@ class InvestecService: ObservableObject {
     
     private init() {}
     
-    func getAccessToken(apiKey: String, clientId: String, clientSecret: String) async throws -> String {
-        // Check if we have a valid token
-        if let token = accessToken, let expiryDate = expiresAt, expiryDate > Date() {
-            return token
+    // Default credentials (set these to your production values if needed)
+    private let currentApiKey: String = ""
+    private let currentClientId: String = ""
+    private let currentSecret: String = ""
+    private let currentBaseURL: String = "https://openapisandbox.investec.com"
+    
+    // Guest mode sandbox credentials
+    private let guestApiKey: String = "eUF4elFSRlg5N3ZPY3lRQXdsdUVVNkg2ZVB4TUE1ZVk6YVc1MlpYTjBaV04wWlhOdGVtRXRjR0l0WVdOamIzVnVkSE10YzJGdVpHSnZlQT09"
+    private let guestClientId: String = "yAxzQRFX97vOcyQAwluEU6H6ePxMA5eY"
+    private let guestSecret: String = "4dY0PjEYqoBrZ99r"
+    private let guestBaseURL: String = "https://openapisandbox.investec.com"
+    
+    private func getAccessToken(apiKey: String? = nil, clientId: String? = nil, clientSecret: String? = nil) async throws -> String {
+        // Determine which credentials and base URL to use
+        let useApiKey: String
+        let useClientId: String
+        let useSecret: String
+        let useBaseURL: String
+        
+        if AppwriteService.shared.isGuestMode {
+            useApiKey = guestApiKey
+            useClientId = guestClientId
+            useSecret = guestSecret
+            useBaseURL = guestBaseURL
+        } else {
+            guard let apiKey = apiKey, let clientId = clientId, let clientSecret = clientSecret, !apiKey.isEmpty, !clientId.isEmpty, !clientSecret.isEmpty else {
+                throw NSError(domain: "InvestecAPI", code: 401, userInfo: [NSLocalizedDescriptionKey: "API credentials are required but missing."])
+            }
+            useApiKey = apiKey
+            useClientId = clientId
+            useSecret = clientSecret
+            useBaseURL = baseURL
         }
         
-        // Create base64 encoded credentials
-        let credentials = "\(clientId):\(clientSecret)".data(using: .utf8)!.base64EncodedString()
+        let useTokenURL = "\(useBaseURL)/identity/v2/oauth2/token"
         
-        var request = URLRequest(url: URL(string: tokenURL)!)
+        let credentials = "\(useClientId):\(useSecret)".data(using: .utf8)!.base64EncodedString()
+        var request = URLRequest(url: URL(string: useTokenURL)!)
         request.httpMethod = "POST"
         request.addValue("Basic \(credentials)", forHTTPHeaderField: "Authorization")
-        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.addValue(useApiKey, forHTTPHeaderField: "x-api-key")
         request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = "grant_type=client_credentials&scope=accounts".data(using: .utf8)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500, 
+            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500,
                          userInfo: [NSLocalizedDescriptionKey: "Authentication failed: \(errorString)"])
         }
-        
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let token = json?["access_token"] as? String,
               let expiresIn = json?["expires_in"] as? Int else {
-            throw NSError(domain: "InvestecAPI", code: 0, 
+            throw NSError(domain: "InvestecAPI", code: 0,
                          userInfo: [NSLocalizedDescriptionKey: "Invalid token response"])
         }
-        
-        // Save token with expiry
         self.accessToken = token
-        self.expiresAt = Date().addingTimeInterval(TimeInterval(expiresIn - 60)) // Buffer of 1 minute
-        
+        self.expiresAt = Date().addingTimeInterval(TimeInterval(expiresIn - 60))
         return token
     }
-    
-    func getAccounts(apiKey: String, clientId: String, clientSecret: String) async throws -> [AccountResponse.Account] {
+
+    func getAccounts(apiKey: String? = nil, clientId: String? = nil, clientSecret: String? = nil) async throws -> [AccountResponse.Account] {
         let token = try await getAccessToken(apiKey: apiKey, clientId: clientId, clientSecret: clientSecret)
         
-        var request = URLRequest(url: URL(string: "\(baseURL)/za/pb/v1/accounts")!)
+        let useBaseURL = AppwriteService.shared.isGuestMode ? guestBaseURL : baseURL
+        let useApiKey = AppwriteService.shared.isGuestMode ? guestApiKey : (apiKey ?? "")
+        
+        let url = URL(string: "\(useBaseURL)/za/pb/v1/accounts")!
+        var request = URLRequest(url: url)
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.addValue(useApiKey, forHTTPHeaderField: "x-api-key")
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500, 
+            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500,
                          userInfo: [NSLocalizedDescriptionKey: "Failed to fetch accounts: \(errorString)"])
         }
         
-        let accountResponse = try JSONDecoder().decode(AccountResponse.self, from: data)
-        return accountResponse.data.accounts
-    }
-    
-    func getTransactions(apiKey: String, clientId: String, clientSecret: String, accountId: String, 
-                         fromDate: String, toDate: String) async throws -> [Transaction] {
-        let token = try await getAccessToken(apiKey: apiKey, clientId: clientId, clientSecret: clientSecret)
-        
-        let urlString = "\(baseURL)/za/pb/v1/accounts/\(accountId)/transactions?fromDate=\(fromDate)&toDate=\(toDate)"
-        
-        guard let url = URL(string: urlString) else {
-            throw NSError(domain: "InvestecAPI", code: 400, 
-                         userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
+        // Debug: Print the raw response to see what the API is returning
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Raw accounts response: \(responseString)")
         }
         
+        do {
+            let accountResponse = try JSONDecoder().decode(AccountResponse.self, from: data)
+            return accountResponse.data.accounts
+        } catch {
+            print("Failed to decode accounts response: \(error)")
+            // If decoding fails, it might be because there are no accounts.
+            // Return an empty array to prevent a crash.
+            return []
+        }
+    }
+
+    // Fetch transactions for a specific account
+    func getTransactions(accountId: String, fromDate: String, toDate: String, apiKey: String? = nil, clientId: String? = nil, clientSecret: String? = nil) async throws -> [Transaction] {
+        let token = try await getAccessToken(apiKey: apiKey, clientId: clientId, clientSecret: clientSecret)
+        
+        let useBaseURL = AppwriteService.shared.isGuestMode ? guestBaseURL : baseURL
+        let useApiKey = AppwriteService.shared.isGuestMode ? guestApiKey : (apiKey ?? "")
+        
+        var components = URLComponents(string: "\(useBaseURL)/za/pb/v1/accounts/\(accountId)/transactions")!
+        components.queryItems = [
+            URLQueryItem(name: "fromDate", value: fromDate),
+            URLQueryItem(name: "toDate", value: toDate)
+        ]
+        
+        let url = components.url!
         var request = URLRequest(url: url)
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.addValue(useApiKey, forHTTPHeaderField: "x-api-key")
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
             print("Error response: \(errorString)")
-            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500, 
+            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500,
                          userInfo: [NSLocalizedDescriptionKey: "Failed to fetch transactions: \(errorString)"])
         }
         
-        let transactionResponse = try JSONDecoder().decode(TransactionResponse.self, from: data)
-        return transactionResponse.data.transactions
+        // Debug: Print the raw response
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("Raw transactions response: \(responseString)")
+        }
+        
+        do {
+            // Try to decode the response, but handle missing data gracefully
+            let decodedResponse = try JSONDecoder().decode(TransactionResponse.self, from: data)
+            return decodedResponse.data.transactions
+        } catch {
+            print("Failed to decode transactions response: \(error)")
+            // If there's no transaction data, return empty array instead of throwing
+            return []
+        }
     }
     
     // Helper function to get date strings for the last 30 days
@@ -279,32 +418,36 @@ class InvestecService: ObservableObject {
     // MARK: - New Transfer Functions
     
     /// Get a list of beneficiaries that can receive payments
-    func getBeneficiaries(apiKey: String, clientId: String, clientSecret: String) async throws -> [BeneficiaryResponse.Beneficiary] {
+    func getBeneficiaries(apiKey: String? = nil, clientId: String? = nil, clientSecret: String? = nil) async throws -> [BeneficiaryResponse.Beneficiary] {
         let token = try await getAccessToken(apiKey: apiKey, clientId: clientId, clientSecret: clientSecret)
-        
-        var request = URLRequest(url: URL(string: "\(baseURL)/za/pb/v1/accounts/beneficiaries")!)
+        let useApiKey = apiKey ?? currentApiKey
+        let useBaseURL = currentBaseURL
+        var request = URLRequest(url: URL(string: "\(useBaseURL)/za/pb/v1/accounts/beneficiaries")!)
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue(apiKey, forHTTPHeaderField: "x-api-key")
-        
+        request.addValue(useApiKey, forHTTPHeaderField: "x-api-key")
         let (data, response) = try await URLSession.shared.data(for: request)
-        
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500, 
+            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500,
                          userInfo: [NSLocalizedDescriptionKey: "Failed to fetch beneficiaries: \(errorString)"])
         }
         
-        let beneficiaryResponse = try JSONDecoder().decode(BeneficiaryResponse.self, from: data)
-        return beneficiaryResponse.data
+        do {
+            let beneficiaryResponse = try JSONDecoder().decode(BeneficiaryResponse.self, from: data)
+            return beneficiaryResponse.data
+        } catch {
+            print("Failed to decode beneficiaries, returning empty array. Error: \(error)")
+            return []
+        }
     }
     
     /// Transfer money between your own Investec accounts
     func transferBetweenAccounts(
-        apiKey: String, 
-        clientId: String, 
+        apiKey: String,
+        clientId: String,
         clientSecret: String,
         sourceAccountId: String,
-        destinationAccountId: String, 
+        destinationAccountId: String,
         amount: Double,
         myReference: String,
         theirReference: String
@@ -313,7 +456,7 @@ class InvestecService: ObservableObject {
         
         let urlString = "\(baseURL)/za/pb/v1/accounts/\(sourceAccountId)/transfermultiple"
         guard let url = URL(string: urlString) else {
-            throw NSError(domain: "InvestecAPI", code: 400, 
+            throw NSError(domain: "InvestecAPI", code: 400,
                          userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
         }
         
@@ -352,7 +495,7 @@ class InvestecService: ObservableObject {
             let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
-                throw NSError(domain: "InvestecAPI", code: 0, 
+                throw NSError(domain: "InvestecAPI", code: 0,
                              userInfo: [NSLocalizedDescriptionKey: "No HTTP response received"])
             }
             
@@ -395,27 +538,27 @@ class InvestecService: ObservableObject {
             case 202:
                 // Accepted - transfer is being processed
                 return TransferResponse.TransferResult(
-                    status: "Accepted", 
-                    description: "Transfer has been accepted and is being processed. It may take a few minutes to complete.", 
+                    status: "Accepted",
+                    description: "Transfer has been accepted and is being processed. It may take a few minutes to complete.",
                     transferId: nil
                 )
                 
             case 408, 504:
                 // Timeout - but transfer might still succeed
-                throw NSError(domain: "InvestecAPI", code: httpResponse.statusCode, 
+                throw NSError(domain: "InvestecAPI", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Transfer request timed out, but may still be processing. Please check your account for confirmation."])
                 
             default:
                 let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
                 print("Transfer error response: \(errorString)")
-                throw NSError(domain: "InvestecAPI", code: httpResponse.statusCode, 
+                throw NSError(domain: "InvestecAPI", code: httpResponse.statusCode,
                              userInfo: [NSLocalizedDescriptionKey: "Transfer failed: \(errorString)"])
             }
             
         } catch let error as NSError {
             // Handle specific timeout errors
             if error.code == NSURLErrorTimedOut {
-                throw NSError(domain: "InvestecAPI", code: 408, 
+                throw NSError(domain: "InvestecAPI", code: 408,
                              userInfo: [NSLocalizedDescriptionKey: "Transfer request timed out, but may still be processing. Please check your account to confirm the transfer status."])
             }
             throw error
@@ -437,7 +580,7 @@ class InvestecService: ObservableObject {
         
         let urlString = "\(baseURL)/za/pb/v1/accounts/\(sourceAccountId)/paymultiple"
         guard let url = URL(string: urlString) else {
-            throw NSError(domain: "InvestecAPI", code: 400, 
+            throw NSError(domain: "InvestecAPI", code: 400,
                          userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
         }
         
@@ -468,14 +611,14 @@ class InvestecService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
             print("Payment error response: \(errorString)")
-            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500, 
+            throw NSError(domain: "InvestecAPI", code: (response as? HTTPURLResponse)?.statusCode ?? 500,
                          userInfo: [NSLocalizedDescriptionKey: "Payment failed: \(errorString)"])
         }
         
         // Parse response
         let transferResponse = try JSONDecoder().decode(TransferResponse.self, from: data)
         guard let firstResult = transferResponse.data?.transferResponses?.first ?? transferResponse.data?.transferResponse?.TransferResponses?.first else {
-            throw NSError(domain: "InvestecAPI", code: 0, 
+            throw NSError(domain: "InvestecAPI", code: 0,
                          userInfo: [NSLocalizedDescriptionKey: "No payment response received"])
         }
         

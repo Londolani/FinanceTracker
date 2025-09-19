@@ -93,6 +93,21 @@ struct GoalsListView: View {
         }
         .navigationBarHidden(true)
         .task { await loadGoals() }
+        .onReceive(appwriteService.$isGuestMode) { isGuest in
+            if isGuest {
+                // Clear any previously loaded goals when switching to guest mode
+                goals = []
+                Task {
+                    await loadGoals()
+                }
+            }
+        }
+        .onReceive(appwriteService.$isAuthenticated) { isAuth in
+            if !isAuth {
+                // Clear goals when user signs out
+                goals = []
+            }
+        }
     }
 
     @ViewBuilder
@@ -167,59 +182,27 @@ struct GoalsListView: View {
     }
 
     private func loadGoals() async {
-        guard appwriteService.currentUser?.id != nil else { return }
         await MainActor.run {
             isLoading = true
             errorMessage = nil
         }
+        
         do {
-            let list = try await appwriteService.databases.listDocuments(
-                databaseId: appwriteService.databaseId,
-                collectionId: appwriteService.goalsCollectionId,
-                queries: [Query.orderDesc("$createdAt")]
-            ) as DocumentList<[String: JSONCodable.AnyCodable]>
-            let items: [GoalItem] = list.documents.compactMap { doc in
-                let data = doc.data
-                let name = (data["name"]?.value as? String) ?? "Unnamed Goal"
-                let target = (data["target_amount"]?.value as? Double) ?? ((data["target_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
-                let saved = (data["saved_amount"]?.value as? Double) ?? ((data["saved_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
-                let isTracked = (data["is_tracked"]?.value as? Bool) ?? true
-                let linkedAccountId = data["linkedAccountId"]?.value as? String // Fixed: use camelCase to match creation
-                
-                return GoalItem(id: doc.id, name: name, target: target, saved: saved, isTracked: isTracked, linkedAccountId: linkedAccountId)
-            }
+            let fetchedGoals = try await appwriteService.fetchGoals()
             await MainActor.run {
-                self.goals = items
+                self.goals = fetchedGoals
                 self.isLoading = false
             }
         } catch {
             await MainActor.run {
-                self.errorMessage = "Failed to load goals: \(error.localizedDescription)"
                 self.isLoading = false
+                if let appwriteError = error as? AppwriteError, appwriteError.type == "general_argument_invalid" {
+                    self.errorMessage = "Failed to load goals: Invalid query. Please check the 'userId' attribute in your Appwrite collection schema. It might be misspelled as 'userld'."
+                } else {
+                    self.errorMessage = "Failed to load goals: \(error.localizedDescription)"
+                }
             }
         }
-    }
-}
-
-struct GoalItem: Identifiable, Hashable, Equatable {
-    let id: String
-    let name: String
-    let target: Double
-    let saved: Double
-    let isTracked: Bool
-    let linkedAccountId: String? // Add the linked account ID field
-    
-    var progress: Double {
-        target > 0 ? min(saved / target, 1.0) : 0
-    }
-    
-    // Hashable and Equatable conformance
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-    
-    static func == (lhs: GoalItem, rhs: GoalItem) -> Bool {
-        lhs.id == rhs.id
     }
 }
 

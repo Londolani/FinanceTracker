@@ -159,6 +159,14 @@ struct AuthView: View {
                     .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
                     .padding(.horizontal, 20)
                     
+                    // Guest mode button
+                    Button(action: signInAsGuest) {
+                        Text("Continue as Guest")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.blue)
+                            .padding(.vertical, 16)
+                    }
+                    
                     Spacer(minLength: 40)
                 }
             }
@@ -176,6 +184,25 @@ struct AuthView: View {
                 } else {
                     try await appwriteService.signUp(email: email, password: password)
                 }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
+    }
+    
+    private func signInAsGuest() {
+        Task {
+            errorMessage = nil
+            isLoading = true
+            
+            do {
+                try await appwriteService.signInAsGuest()
             } catch {
                 await MainActor.run {
                     errorMessage = error.localizedDescription

@@ -109,6 +109,11 @@ struct StunningTransferView: View {
                             accounts: accounts,
                             isLoading: accounts.isEmpty
                         )
+                        .onChange(of: selectedSourceAccount) { _ in
+                            Task {
+                                await loadGoals()
+                            }
+                        }
                         
                         // To Account (if between accounts)
                         if transferType == .betweenAccounts {
@@ -120,6 +125,11 @@ struct StunningTransferView: View {
                                 accounts: accounts.filter { $0.accountId != selectedSourceAccount },
                                 isLoading: accounts.isEmpty
                             )
+                            .onChange(of: selectedDestinationAccount) { _ in
+                                Task {
+                                    await loadGoals()
+                                }
+                            }
                         }
                         
                         // Amount
@@ -394,29 +404,46 @@ struct StunningTransferView: View {
     }
     
     private func loadGoals() async {
+        // Always clear goals before fetching new ones
+        await MainActor.run {
+            self.goals = []
+            self.selectedGoal = nil
+        }
+        
+        // Create a set of account IDs to fetch goals for
+        var accountIds = Set<String>()
+        if let source = selectedSourceAccount {
+            accountIds.insert(source)
+        }
+        if let destination = selectedDestinationAccount, transferType == .betweenAccounts {
+            accountIds.insert(destination)
+        }
+        
+        guard !accountIds.isEmpty else {
+            return
+        }
+        
         do {
-            guard let userId = appwriteService.currentUser?.id else {
-                return
-            }
-            
-            let goalsList = try await appwriteService.databases.listDocuments(
-                databaseId: appwriteService.databaseId,
-                collectionId: appwriteService.goalsCollectionId
-            )
-            
-            let items: [GoalItem] = goalsList.documents.compactMap { doc in
-                let data = doc.data
-                let name = (data["name"]?.value as? String) ?? "Unnamed Goal"
-                let target = (data["target_amount"]?.value as? Double) ?? ((data["target_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
-                let saved = (data["saved_amount"]?.value as? Double) ?? ((data["saved_amount"]?.value as? NSNumber)?.doubleValue ?? 0)
-                let isTracked = (data["is_tracked"]?.value as? Bool) ?? true
-                let linkedAccountId = data["linkedAccountId"]?.value as? String
+            // Fetch goals for all relevant accounts in parallel
+            let allGoals = try await withThrowingTaskGroup(of: [GoalItem].self) { group in
+                for accountId in accountIds {
+                    group.addTask {
+                        try await self.appwriteService.fetchGoals(for: accountId)
+                    }
+                }
                 
-                return GoalItem(id: doc.id, name: name, target: target, saved: saved, isTracked: isTracked, linkedAccountId: linkedAccountId)
+                var combinedGoals: [GoalItem] = []
+                for try await goalList in group {
+                    combinedGoals.append(contentsOf: goalList)
+                }
+                return combinedGoals
             }
+            
+            // Remove duplicates and update the UI
+            let uniqueGoals = Array(Set(allGoals))
             
             await MainActor.run {
-                self.goals = items
+                self.goals = uniqueGoals.sorted { $0.name < $1.name }
             }
         } catch {
             await MainActor.run {

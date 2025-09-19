@@ -330,28 +330,14 @@ struct StunningGoalCreationView: View {
             
             await MainActor.run { isLoading = true }
             
-            let newGoal = [
-                "user_id": userId,
-                "name": goalName,
-                "target_amount": targetAmount,
-                "saved_amount": 0.0,
-                "is_tracked": true,
-                "linkedAccountId": accountId
-            ] as [String : Any]
-            
-            let permissions = [
-                Permission.read(Role.user(userId)),
-                Permission.write(Role.user(userId))
-            ]
-            
             do {
-                _ = try await appwriteService.databases.createDocument(
-                    databaseId: appwriteService.databaseId,
-                    collectionId: appwriteService.goalsCollectionId,
-                    documentId: "unique()",
-                    data: newGoal,
-                    permissions: permissions
+                _ = try await appwriteService.createGoal(
+                    name: goalName,
+                    targetAmount: targetAmount,
+                    isTracked: true,
+                    linkedAccountId: accountId
                 )
+                
                 await MainActor.run {
                     showConfetti = true
                     showSuccess = true

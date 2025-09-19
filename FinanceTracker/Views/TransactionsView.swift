@@ -6,7 +6,7 @@ struct TransactionsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var transactions: [TransactionItem] = []
+    @State private var transactions: [Transaction] = []
     @State private var selectedAccountId: String?
     @State private var accounts: [InvestecService.AccountResponse.Account] = []
 
@@ -204,55 +204,6 @@ struct TransactionsView: View {
         }
     }
     
-    @ViewBuilder
-    private func StunningTransactionCard(transaction: TransactionItem) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Transaction header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(transaction.description)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary)
-                    
-                    if let date = transaction.date {
-                        Text(date, style: .date)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text(transaction.dateString)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(transaction.isDebit ? "-R\(format(abs(transaction.amount)))" : "+R\(format(transaction.amount))")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(transaction.isDebit ? .red : .green)
-                    
-                    if let balance = transaction.runningBalance {
-                        Text("Balance: R\(format(balance))")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
-        }
-    }
-    
-    private func format(_ value: Double) -> String {
-        NumberFormatter.currency.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
-    }
-
     private func loadTransactions() async {
         await MainActor.run { 
             isLoading = true
@@ -302,36 +253,46 @@ struct TransactionsView: View {
             
             // Fetch transactions from Investec API
             let investecTransactions = try await InvestecService.shared.getTransactions(
-                apiKey: apiKey,
-                clientId: clientId,
-                clientSecret: clientSecret,
                 accountId: accountId,
                 fromDate: dates.from,
-                toDate: dates.to
+                toDate: dates.to,
+                apiKey: apiKey,
+                clientId: clientId,
+                clientSecret: clientSecret
             )
             
             // Convert to our app's transaction model
-            let items: [TransactionItem] = investecTransactions.map { transaction in
-                // Handle transaction date parsing
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd"
-                let date = dateFormatter.date(from: transaction.date)
-                
-                return TransactionItem(
+            let items: [Transaction] = investecTransactions.map { transaction in
+                return Transaction(
                     id: transaction.id,
+                    accountId: transaction.accountId,
+                    type: transaction.type,
+                    transactionType: transaction.transactionType,
+                    status: transaction.status,
                     description: transaction.description,
                     amount: transaction.amount,
-                    dateString: transaction.date,
-                    date: date,
-                    runningBalance: transaction.runningBalance
+                    currency: transaction.currency,
+                    postingDate: transaction.postingDate,
+                    valueDate: transaction.valueDate,
+                    transactionDate: transaction.transactionDate,
+                    actionDate: transaction.actionDate,
+                    category: transaction.category,
+                    cardNumber: transaction.cardNumber,
+                    runningBalance: transaction.runningBalance,
+                    postedOrder: transaction.postedOrder
                 )
             }
             
-            await MainActor.run { 
-                self.transactions = items.sorted(by: { 
-                    ($0.date ?? Date.distantPast) > ($1.date ?? Date.distantPast)
-                }).prefix(5).map { $0 } // Take the 5 most recent transactions
-                self.isLoading = false 
+            await MainActor.run {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                
+                self.transactions = items.sorted(by: { t1, t2 in
+                    let date1 = t1.transactionDate.flatMap { dateFormatter.date(from: $0) } ?? Date.distantPast
+                    let date2 = t2.transactionDate.flatMap { dateFormatter.date(from: $0) } ?? Date.distantPast
+                    return date1 > date2
+                })
+                self.isLoading = false
             }
         } catch {
             await MainActor.run { 
@@ -342,23 +303,62 @@ struct TransactionsView: View {
     }
 }
 
-struct TransactionItem: Identifiable {
-    let id: String
-    let description: String
-    let amount: Double
-    let dateString: String
-    let date: Date?
-    let runningBalance: Double?
+struct StunningTransactionCard: View {
+    let transaction: Transaction
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private var transactionDate: Date? {
+        guard let dateString = transaction.transactionDate else { return nil }
+        return Self.dateFormatter.date(from: dateString)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Transaction header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(transaction.description)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    if let date = transactionDate {
+                        Text(date, style: .date)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(transaction.amount < 0 ? "-R\(format(abs(transaction.amount)))" : "+R\(format(transaction.amount))")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(transaction.amount < 0 ? .red : .green)
+                    
+                    if let balance = transaction.runningBalance {
+                        Text("Balance: R\(format(balance))")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(16)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        }
+    }
     
-    var isDebit: Bool { amount < 0 }
-    
-    init(id: String, description: String, amount: Double, dateString: String = "", date: Date? = nil, runningBalance: Double? = nil) {
-        self.id = id
-        self.description = description
-        self.amount = amount
-        self.dateString = dateString
-        self.date = date
-        self.runningBalance = runningBalance
+    private func format(_ value: Double) -> String {
+        NumberFormatter.currency.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
     }
 }
 
