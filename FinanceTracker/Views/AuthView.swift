@@ -3,6 +3,7 @@ import SwiftUI
 struct AuthView: View {
     @State private var email = ""
     @State private var password = ""
+    @State private var name = "" // Add name state
     @State private var isLogin = true
     @State private var errorMessage: String?
     @State private var isLoading = false
@@ -12,8 +13,8 @@ struct AuthView: View {
         ZStack {
             // Beautiful gradient background
             LinearGradient(
-                colors: [.blue.opacity(0.1), .purple.opacity(0.1)], 
-                startPoint: .topLeading, 
+                colors: [.blue.opacity(0.1), .purple.opacity(0.1)],
+                startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
@@ -78,6 +79,24 @@ struct AuthView: View {
                         
                         // Form fields
                         VStack(spacing: 16) {
+                            // Name field (only for sign up)
+                            if !isLogin {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Name")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                    
+                                    TextField("Enter your name", text: $name)
+                                        .autocapitalization(.words)
+                                        .padding(16)
+                                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .strokeBorder(.blue.opacity(0.3), lineWidth: 1)
+                                        )
+                                }
+                            }
+                            
                             // Email field
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Email")
@@ -182,7 +201,7 @@ struct AuthView: View {
                 if isLogin {
                     try await appwriteService.signIn(email: email, password: password)
                 } else {
-                    try await appwriteService.signUp(email: email, password: password)
+                    try await appwriteService.signUp(email: email, password: password, name: name)
                 }
             } catch {
                 await MainActor.run {

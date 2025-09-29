@@ -463,6 +463,26 @@ struct StunningTransferView: View {
             return
         }
         
+        if appwriteService.isGuestMode {
+            // Simulate a sandbox transfer
+            await MainActor.run {
+                self.isLoading = true
+                self.errorMessage = nil
+                self.successMessage = nil
+            }
+            
+            // Simulate a delay
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            
+            // Simulate a successful transfer
+            await MainActor.run {
+                self.isLoading = false
+                self.isOutgoingTransfer = true // Or determine based on logic
+                self.showSuccessOverlay = true
+            }
+            return
+        }
+        
         await MainActor.run {
             self.isLoading = true
             self.errorMessage = nil
@@ -540,8 +560,9 @@ struct StunningTransferView: View {
             
         } catch {
             await MainActor.run {
-                self.errorMessage = "Transfer failed: \(error.localizedDescription)"
                 self.isLoading = false
+                self.errorMessage = "Transfer error: \(error.localizedDescription)"
+                print("Transfer error response: ", error)
             }
         }
     }

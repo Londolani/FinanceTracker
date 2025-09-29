@@ -5,43 +5,11 @@ FinanceTracker is an iOS application designed to help users manage their persona
 ## Features
 
 - **User Authentication:** Secure sign-up and sign-in, including a guest mode for exploration.
-- **Goal Management & Tracking:**
-    - **Create Financial Goals:** Users can define specific financial goals, such as saving for an emergency fund, vacation, or a new car. Each goal includes a name, target amount, and can be linked to a specific account.
-    - **Track Progress:** The app automatically tracks how much has been saved toward each goal, updating progress as new transactions or transfers are made. Users can see both the target and current saved amount for each goal.
-    - **Goal Details:** Each goal provides a detailed view, showing progress, history, and any linked accounts. Users can update goal details, mark goals as tracked/untracked, and delete goals when completed or no longer needed.
-    - **Motivation & Insights:** The goal tracker provides visual feedback (such as progress bars and confetti animations) when milestones are reached, helping users stay motivated and celebrate achievements.
-    - **Multiple Goals:** Users can manage multiple goals simultaneously, each with its own progress and history. This allows for flexible financial planning and prioritization.
-    - **Sandbox Mode:** In guest mode, users can experiment with creating and tracking goals using demo data, without affecting real financial information.
+- **Goal Management:** Create, track, update, and delete financial goals (e.g., emergency fund, vacation, new car).
 - **Bank Credential Management:** Securely store and manage bank API credentials.
-- **Transaction Tracking:** Track and categorize financial transactions to monitor spending and savings.
-- **Dashboard Overview:** Get a summary of financial status, including goal progress and recent activity.
-- **Monthly Replay:** Review monthly financial activity and goal achievements.
-
-## How Goal Tracking Works
-
-1. **Goal Creation:**
-   - Users create a goal by specifying a name (e.g., "Emergency Fund"), a target amount (e.g., $10,000), and optionally linking it to a specific account.
-   - Each goal is stored securely in the backend and can be edited or deleted at any time.
-
-2. **Tracking Progress:**
-   - As users save money or transfer funds, the app updates the "saved" amount for each goal.
-   - The progress bar visually shows how close the user is to reaching the target.
-   - Users can view a list of all goals, each showing its current status and percentage completion.
-
-3. **Goal Details & History:**
-   - Tapping on a goal opens a detailed view, showing transaction history, progress over time, and any notes or linked accounts.
-   - Users can update the goal's name, target, or mark it as tracked/untracked.
-
-4. **Motivation & Milestones:**
-   - When a goal reaches a milestone (e.g., 50% or 100% completion), the app provides visual feedback, such as confetti animations, to celebrate progress.
-   - This helps users stay engaged and motivated to continue saving.
-
-5. **Multiple Goals:**
-   - Users can manage several goals at once, each with its own progress and history.
-   - This allows for flexible financial planning, such as saving for both short-term and long-term objectives.
-
-6. **Sandbox/Guest Mode:**
-   - Users can try out the goal tracker with demo data, creating and tracking goals without needing to sign up or use real financial information.
+- **Transaction Tracking:** (Implied from `TransactionsView.swift` and `Transaction.swift`)
+- **Dashboard Overview:** (Implied from `DashboardView.swift`)
+- **Monthly Replay:** (Implied from `MonthlyReplayView.swift`)
 
 ## Technologies Used
 
@@ -118,33 +86,33 @@ To get a local copy up and running, follow these steps.
 
 ```
 FinanceTracker/
-    FinanceTrackerApp.swift
-    GenerativeAI-Info.plist
-    GoogleService-Info.plist
-    Assets.xcassets/
-    Models/
-        BankCredential.swift
-        GoalItem.swift
-        Transaction.swift
-    Services/
-        AppwriteService.swift
-        AppwriteConfig.swift
-        InvestecService.swift
-    Utilities/
-        Extensions.swift
-    Views/
-        AuthView.swift
-        ConfettiView.swift
-        CredentialsView.swift
-        DashboardView.swift
-        GoalCreationView.swift
-        GoalDetailView.swift
-        GoalsListView.swift
-        MonthlyReplayView.swift
-        StunningGoalCreationView.swift
-        StunningTransferView.swift
-        TransactionsView.swift
-        TransferView.swift
+	FinanceTrackerApp.swift
+	GenerativeAI-Info.plist
+	GoogleService-Info.plist
+	Assets.xcassets/
+	Models/
+		BankCredential.swift
+		GoalItem.swift
+		Transaction.swift
+	Services/
+		AppwriteService.swift
+		AppwriteConfig.swift
+		InvestecService.swift
+	Utilities/
+		Extensions.swift
+	Views/
+		AuthView.swift
+		ConfettiView.swift
+		CredentialsView.swift
+		DashboardView.swift
+		GoalCreationView.swift
+		GoalDetailView.swift
+		GoalsListView.swift
+		MonthlyReplayView.swift
+		StunningGoalCreationView.swift
+		StunningTransferView.swift
+		TransactionsView.swift
+		TransferView.swift
 ```
 
 ## Contributing
