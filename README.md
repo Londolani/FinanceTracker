@@ -1,11 +1,13 @@
 # FinanceTracker
 
-FinanceTracker is an iOS application designed to help users manage their personal finances, track financial goals, and monitor transactions. It provides a comprehensive overview of your financial health, allowing you to set and achieve savings goals, and securely manage your bank credentials.
+FinanceTracker is an iOS application designed to help users manage their personal finances, track financial goals, and monitor transactions. It provides a comprehensive overview of your financial health, allowing you to set and achieve savings goals and securely manage your bank credentials.
+
+True power comes from allowing you to save in your car/loan account and assign transactions to linked savings goals, making it easier to save money in those accounts and be discplined in those transactions since accounts have instant access. Another feature is monthly replay, which just checks your transactions for the month and creates a Spotify Wrapped-like feature of the insights from the transactions, which will be later linked to Gemini flash model for better insights 
 
 ## Features
 
 - **User Authentication:** Secure sign-up and sign-in, including a guest mode for exploration.
-- **Goal Management:** Create, track, update, and delete financial goals (e.g., emergency fund, vacation, new car).
+- **Goal Management:** Create, track, update, and delete financial goals (e.g., emergency fund, vacation, new car) and link them to accounts. 
 - **Bank Credential Management:** Securely store and manage bank API credentials.
 - **Transaction Tracking:** (Implied from `TransactionsView.swift` and `Transaction.swift`)
 - **Dashboard Overview:** (Implied from `DashboardView.swift`)
