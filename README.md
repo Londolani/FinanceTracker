@@ -133,5 +133,5 @@ Distributed under the MIT License. See `LICENSE` for more information. (Note: A 
 
 ## Contact
 
-Your Name/Project Maintainer - [your_email@example.com](mailto:your_email@example.com)
-Project Link: [https://github.com/your-username/FinanceTracker](https://github.com/your-username/FinanceTracker)
+Your Name/Project Maintainer - [your_email@example.com](mailto:londolani0700@gmail.com)
+Project Link: [https://github.com/your-username/FinanceTracker](https://github.com/londolani/FinanceTracker)
